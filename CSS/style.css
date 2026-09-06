@@ -20,6 +20,7 @@ body {
 #right {
   flex:1;
   text-align:left;
+  margin-top:40px; /* ★ 右側を下げる */
 }
 
 h2 {
@@ -34,11 +35,12 @@ canvas {
 }
 
 .controls {
-  margin:10px 0;
+  margin:14px 0;
 }
 
 input[type=range] {
-  width:260px;
+  width:380px;   /* ★ 大きくした */
+  height:12px;   /* ★ 太くした */
 }
 
 button {
@@ -70,10 +72,25 @@ button:hover {
 }
 
 #inputArea {
-  margin-top:8px;
+  margin-top:10px;
+  padding:10px;
+  background:#111;
+  border-radius:8px;
+  max-height:400px;
+  overflow-y:auto;
 }
 
-#inputArea input {
+.nRow {
+  margin:4px 0;
+  display:flex;
+  align-items:center;
+}
+
+.nRow label {
+  width:50px;
+}
+
+.nRow input {
   width:70px;
-  margin:0 4px;
+  margin-left:6px;
 }
