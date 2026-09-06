@@ -1,5 +1,4 @@
 var KMAX = 32;
-var SLOT_MAX = 8;
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 var spec = document.getElementById('spec');
@@ -19,8 +18,11 @@ var audioCtx = null;
 var osc = null;
 var masterGain = null;
 var playing = false;
-var baseFreq = 220;
-var A4 = 440;
+
+// ★ 初期音を B♭ に（233.08Hz）
+var baseFreq = 233.08;
+// A4 基準（HTML側と合わせて442）
+var A4 = 442;
 
 /* ---------- 描画 ---------- */
 function drawWave() {
@@ -354,30 +356,95 @@ function initNoteButtons() {
   }
 }
 
-/* ---------- 保存スロット ---------- */
-var slotsDiv = document.getElementById('slots');
-function initSlots() {
-  for (var i = 0; i < SLOT_MAX; i++) {
-    var name = localStorage.getItem('fourierName' + i) || ('Slot ' + (i + 1));
-    slotsDiv.innerHTML += '<div>'
-      + '<input value="' + name + '" onchange="renameSlot(' + i + ', this.value)"> '
-      + '<button onclick="saveSlot(' + i + ')">保存</button>'
-      + '<button onclick="loadSlot(' + i + ')">読込</button>'
-      + '</div>';
+/* ---------- プリセット（読み込み専用） ---------- */
+var PRESETS = [
+  {
+    name: '基本B♭（基音のみ）',
+    baseFreq: 233.08,
+    activeHarmonics: [1]
+  },
+  {
+    name: '倍音リッチ（1〜4倍音）',
+    baseFreq: 233.08,
+    activeHarmonics: [1, 2, 3, 4]
+  },
+  {
+    name: '高次倍音強め（5〜8倍音）',
+    baseFreq: 233.08,
+    activeHarmonics: [5, 6, 7, 8]
   }
-}
-function renameSlot(i, v) { localStorage.setItem('fourierName' + i, v); }
-function saveSlot(i) {
-  localStorage.setItem('fourierSlot' + i, JSON.stringify(amps));
-}
-function loadSlot(i) {
-  var data = JSON.parse(localStorage.getItem('fourierSlot' + i) || 'null');
-  if (!data) return;
-  for (var k = 0; k < KMAX; k++) amps[k] = data[k] || 0;
-  for (var k = 0; k < KMAX; k++) updateGain(k);
+];
+
+function applyPreset(preset) {
+  // 周波数
+  setBaseFreq(preset.baseFreq);
+
+  // 振幅パターン
+  for (var k = 0; k < KMAX; k++) amps[k] = 0;
+  for (var i = 0; i < preset.activeHarmonics.length; i++) {
+    var n = preset.activeHarmonics[i];
+    if (n >= 1 && n <= KMAX) {
+      // シンプルに 1/n で減衰
+      amps[n - 1] = 1 / n;
+    }
+  }
+
+  rebuildWave();
   drawAll();
 }
 
-initNoteButtons();
-initSlots();
-drawAll();
+function initPresets() {
+  var menu = document.getElementById('slotMenu');
+  var btn = document.getElementById('slotMenuBtn');
+
+  PRESETS.forEach(function(p) {
+    var b = document.createElement('button');
+    b.textContent = p.name;
+    b.onclick = function() { applyPreset(p); };
+    menu.appendChild(b);
+  });
+
+  btn.onclick = function() {
+    menu.classList.toggle('open');
+  };
+}
+
+/* ---------- N の数値入力モード ---------- */
+function toggleInputArea() {
+  var area = document.getElementById('inputArea');
+  area.classList.toggle('hidden');
+}
+
+function applyNFromInput() {
+  var idxInput = document.getElementById('nIndexInput');
+  var ampInput = document.getElementById('nAmpInput');
+
+  var idx = parseInt(idxInput.value, 10);
+  var amp = parseFloat(ampInput.value);
+
+  if (isNaN(idx) || idx < 1 || idx > KMAX) return;
+  if (isNaN(amp)) return;
+
+  amp = Math.max(0, Math.min(1, amp));
+  amps[idx - 1] = amp;
+  updateGain(idx - 1);
+  drawAll();
+}
+
+/* ---------- 初期化 ---------- */
+function initUI() {
+  initNoteButtons();
+  initPresets();
+
+  var toggleBtn = document.getElementById('toggleInput');
+  var applyBtn = document.getElementById('applyNBtn');
+
+  if (toggleBtn) toggleBtn.onclick = toggleInputArea;
+  if (applyBtn) applyBtn.onclick = applyNFromInput;
+
+  // 初期表示を B♭ に合わせる
+  setBaseFreq(baseFreq);
+  drawAll();
+}
+
+initUI();
