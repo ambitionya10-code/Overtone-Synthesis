@@ -21,7 +21,7 @@ var playing = false;
 
 // ★ 初期音を B♭ に（233.08Hz）
 var baseFreq = 233.08;
-// A4 基準（HTML側と合わせて442）
+// A4 基準
 var A4 = 442;
 
 /* ---------- 描画 ---------- */
@@ -376,15 +376,12 @@ var PRESETS = [
 ];
 
 function applyPreset(preset) {
-  // 周波数
   setBaseFreq(preset.baseFreq);
 
-  // 振幅パターン
   for (var k = 0; k < KMAX; k++) amps[k] = 0;
   for (var i = 0; i < preset.activeHarmonics.length; i++) {
     var n = preset.activeHarmonics[i];
     if (n >= 1 && n <= KMAX) {
-      // シンプルに 1/n で減衰
       amps[n - 1] = 1 / n;
     }
   }
@@ -442,7 +439,6 @@ function initUI() {
   if (toggleBtn) toggleBtn.onclick = toggleInputArea;
   if (applyBtn) applyBtn.onclick = applyNFromInput;
 
-  // 初期表示を B♭ に合わせる
   setBaseFreq(baseFreq);
   drawAll();
 }
