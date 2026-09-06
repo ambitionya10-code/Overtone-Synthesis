@@ -1,0 +1,31 @@
+body {
+  background:#0d1117;
+  color:#e6edf3;
+  font-family:system-ui, sans-serif;
+  text-align:center;
+}
+
+canvas {
+  background:#010409;
+  border-radius:12px;
+  margin:10px auto;
+  display:block;
+}
+
+.controls {
+  margin:10px;
+}
+
+input[type=range] {
+  width:300px;
+}
+
+button {
+  background:#238636;
+  color:white;
+  border:none;
+  border-radius:8px;
+  padding:6px 12px;
+  margin:4px;
+  cursor:pointer;
+}
