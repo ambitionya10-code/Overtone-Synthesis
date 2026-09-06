@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>倍音合成 可視化 & 音声</title>
+<style>
+  body {
+    background:#0d1117;
+    color:#e6edf3;
+    font-family:system-ui, sans-serif;
+    text-align:center;
+  }
+  canvas {
+    background:#010409;
+    border-radius:12px;
+    margin:10px auto;
+    display:block;
+  }
+  .controls {
+    margin:10px;
+  }
+  input[type=range] {
+    width:300px;
+  }
+  button {
+    background:#238636;
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:6px 12px;
+    margin:4px;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<h2>倍音合成</h2>
+
+<canvas id="canvas" width="900" height="300"></canvas>
+<canvas id="spec" width="900" height="320"></canvas>
+
+<div class="controls">
+  <button onclick="toggleUpperHarmonics()">17〜32倍音 表示切替</button>
+  <button onclick="startAudio()">▶ 再生</button>
+  <button onclick="stopAudio()">■ 停止</button>
+</div>
+
+<div class="controls">
+  マスター音量
+  <input type="range" min="0" max="1" step="0.01" value="0.3"
+         oninput="setMaster(+this.value)">
+</div>
+
+<div class="controls">
+  基音周波数 (Hz)
+  <input id="baseFreqInput" type="number" value="233.08" min="20" max="2000" step="1"
+         oninput="setBaseFreq(+this.value)">
+</div>
+
+<div class="controls">
+  ピッチ基準 A4(Hz)
+  <input id="a4Input" type="number" value="442" min="400" max="500" step="1"
+         oninput="setA4(+this.value)">
+</div>
+
+<div class="controls">
+  <button onclick="octaveDown()">⬇ 1oct</button>
+  <button onclick="octaveUp()">⬆ 1oct</button>
+</div>
+
+<div class="controls" id="noteButtons"></div>
+
+<div class="controls">
+  <b>保存スロット（8個・名前変更可）</b><br>
+  <div id="slots"></div>
+</div>
+
+<script>
+var KMAX = 32;
+var SLOT_MAX = 8;
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var spec = document.getElementById('spec');
+var sctx = spec.getContext('2d');
+
+var phase = 0;
+var anim = false;
+var last = 0;
+var showUpper = true;
+
+var amps = [];
+for (var i = 0; i < KMAX; i++) amps.push(0);
+
+var masterVol = 0.3;
+
+var audioCtx = null;
+var osc = null;
+var masterGain = null;
+var playing = false;
+var baseFreq = 220;
+var A4 = 440;
+
+/* ---------- 描画 ---------- */
+function drawWave() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  var W = canvas.width, H = canvas.height;
+  var mid = H / 2;
+
+  // まず最大振幅を計算（正規化用）
+  var maxAmp = 0;
+  for (var i = 0; i <= W - 60; i++) {
+    var t = i / (W - 60) * 2 * Math.PI;
+    var y = 0;
+    for (var k = 1; k <= KMAX; k++) {
+      y += amps[k - 1] * masterVol * Math.sin(k * t + phase);
+    }
+    maxAmp = Math.max(maxAmp, Math.abs(y));
+  }
+  if (maxAmp < 1e-6) maxAmp = 1; // ゼロ割防止
+
+  var scale = (H * 0.45) / maxAmp;
+
+  ctx.strokeStyle = '#444';
+  ctx.beginPath();
+  ctx.moveTo(40, mid);
+  ctx.lineTo(W - 10, mid);
+  ctx.stroke();
+
+  // 成分波
+  for (var k = 1; k <= KMAX; k++) {
+    var A = amps[k - 1] * masterVol;
+    if (!A) continue;
+    ctx.strokeStyle = 'rgba(88,166,255,0.25)';
+    ctx.beginPath();
+    for (var i = 0; i <= W - 60; i++) {
+      var t = i / (W - 60) * 2 * Math.PI;
+      var y = A * Math.sin(k * t + phase);
+      var px = 40 + i;
+      var py = mid - y * scale;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  // 合成波
+  ctx.strokeStyle = '#58a6ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (var i = 0; i <= W - 60; i++) {
+    var t = i / (W - 60) * 2 * Math.PI;
+    var y = 0;
+    for (var k = 1; k <= KMAX; k++) {
+      y += amps[k - 1] * masterVol * Math.sin(k * t + phase);
+    }
+    var px = 40 + i;
+    var py = mid - y * scale;
+    if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1;
+}
+
+function drawBars() {
+  sctx.clearRect(0, 0, spec.width, spec.height);
+
+  var W = spec.width;
+  var H = showUpper ? 320 : 170;
+  spec.height = H;
+
+  var gap = showUpper ? 30 : 0;
+  var rowHeight = showUpper ? (H - gap) / 2 : H;
+
+  for (var k = 1; k <= KMAX; k++) {
+    if (!showUpper && k > 16) continue;
+    var row = (k <= 16) ? 0 : 1;
+    var localK = (k <= 16) ? k : (k - 16);
+
+    var rowTop = row * (rowHeight + gap);
+
+    var x = (localK - 0.5) * W / 16;
+    var h = amps[k - 1] * (rowHeight - 40);
+
+    sctx.fillStyle = '#58a6ff';
+    sctx.fillRect(x - 14, rowTop + rowHeight - h - 20, 28, h);
+    sctx.fillStyle = '#e6edf3';
+    sctx.font = '12px sans-serif';
+    sctx.textAlign = 'center';
+    sctx.fillText('N=' + k, x, rowTop + rowHeight - 6);
+  }
+}
+
+function drawAll() { drawWave(); drawBars(); }
+
+/* ---------- 棒グラフ スライド操作 ---------- */
+function setAmpFromPos(clientX, clientY) {
+  var rect = spec.getBoundingClientRect();
+  var x = clientX - rect.left;
+  var y = clientY - rect.top;
+
+  if (x < 0 || x > rect.width) return;
+  var gap = showUpper ? 30 : 0;
+  var rowHeight = showUpper ? (rect.height - gap) / 2 : rect.height;
+
+  var row = showUpper ? ((y < rowHeight) ? 0 : 1) : 0;
+  var localY = row === 0 ? y : (y - rowHeight - gap);
+
+  var localK = Math.floor(x / rect.width * 16);
+  var k = row * 16 + localK;
+
+  if (!showUpper && k >= 16) return;
+  if (k < 0 || k >= KMAX) return;
+
+  var localHeight = localY;
+
+  var A = Math.max(0, Math.min(1,
+    (rowHeight - localHeight - 20) / (rowHeight - 40)
+  ));
+  amps[k] = A;
+  updateGain(k);
+  drawAll();
+}
+
+var dragging = false;
+
+spec.addEventListener('mousedown', function(e) {
+  dragging = true;
+  setAmpFromPos(e.clientX, e.clientY);
+});
+
+spec.addEventListener('mousemove', function(e) {
+  if (dragging) setAmpFromPos(e.clientX, e.clientY);
+});
+
+window.addEventListener('mouseup', function() {
+  dragging = false;
+});
+
+// タッチ操作（スマホ・タブレット）対応
+spec.addEventListener('touchstart', function(e) {
+  dragging = true;
+  var t = e.touches[0];
+  setAmpFromPos(t.clientX, t.clientY);
+  e.preventDefault();
+}, { passive:false });
+
+spec.addEventListener('touchmove', function(e) {
+  if (!dragging) return;
+  var t = e.touches[0];
+  setAmpFromPos(t.clientX, t.clientY);
+  e.preventDefault();
+}, { passive:false });
+
+window.addEventListener('touchend', function() {
+  dragging = false;
+});
+
+/* ---------- アニメ ---------- */
+function loop(t) {
+  if (!anim) return;
+  if (!last) last = t;
+  phase += (t - last) / 1000;
+  last = t;
+  drawAll();
+  requestAnimationFrame(loop);
+}
+function toggleUpperHarmonics() {
+  showUpper = !showUpper;
+  drawAll();
+}
+
+/* ---------- 音声 ---------- */
+function startAudio() {
+  if (playing) return;
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // ===== 合成波をPeriodicWaveで生成 =====
+  // 全倍音を単一オシレータ化して位相を完全同期
+  var real = new Float32Array(KMAX + 1);
+  var imag = new Float32Array(KMAX + 1);
+
+  // imag[n] = sin成分
+  for (var k = 1; k <= KMAX; k++) {
+    imag[k] = amps[k - 1];
+  }
+
+  // 正規化
+  var maxAmp = 0;
+  for (var t = 0; t < 2048; t++) {
+    var ph = t / 2048 * 2 * Math.PI;
+    var y = 0;
+    for (var k = 1; k <= KMAX; k++) {
+      y += amps[k - 1] * Math.sin(k * ph);
+    }
+    maxAmp = Math.max(maxAmp, Math.abs(y));
+  }
+  if (maxAmp < 1e-6) maxAmp = 1;
+
+  var wave = audioCtx.createPeriodicWave(real, imag, {
+    disableNormalization: true
+  });
+
+  osc = audioCtx.createOscillator();
+  osc.setPeriodicWave(wave);
+  osc.frequency.value = baseFreq;
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = masterVol / maxAmp;
+
+  osc.connect(masterGain);
+  masterGain.connect(audioCtx.destination);
+
+  // 全倍音を同時位相で開始
+  osc.start(audioCtx.currentTime);
+
+  playing = true;
+}
+function stopAudio() {
+  if (!playing) return;
+
+  if (osc) osc.stop();
+  audioCtx.close();
+
+  osc = null;
+  masterGain = null;
+  playing = false;
+}
+function rebuildWave() {
+  if (!playing || !osc) return;
+
+  // PeriodicWave再構築
+  var real = new Float32Array(KMAX + 1);
+  var imag = new Float32Array(KMAX + 1);
+
+  for (var k = 1; k <= KMAX; k++) {
+    imag[k] = amps[k - 1];
+  }
+
+  var maxAmp = 0;
+  for (var t = 0; t < 1024; t++) {
+    var ph = t / 1024 * 2 * Math.PI;
+    var y = 0;
+    for (var k = 1; k <= KMAX; k++) {
+      y += amps[k - 1] * Math.sin(k * ph);
+    }
+    maxAmp = Math.max(maxAmp, Math.abs(y));
+  }
+  if (maxAmp < 1e-6) maxAmp = 1;
+
+  var wave = audioCtx.createPeriodicWave(real, imag, {
+    disableNormalization: true
+  });
+
+  osc.setPeriodicWave(wave);
+  masterGain.gain.setValueAtTime(
+    masterVol / maxAmp,
+    audioCtx.currentTime
+  );
+}
+
+function updateGain(i) {
+  rebuildWave();
+}
+function setMaster(v) {
+  masterVol = v;
+
+  if (playing && masterGain) {
+    rebuildWave();
+  }
+
+  drawAll();
+}
+function setBaseFreq(v) {
+  baseFreq = v;
+
+  var input = document.getElementById('baseFreqInput');
+  if (input) input.value = Math.round(baseFreq * 100) / 100;
+
+  if (!playing) return;
+  if (playing && osc) {
+    osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+  }
+}
+
+function setA4(v) {
+  A4 = v;
+}
+
+function octaveUp() {
+  setBaseFreq(baseFreq * 2);
+}
+
+function octaveDown() {
+  setBaseFreq(baseFreq / 2);
+}
+
+// ===== 音階ボタン =====
+var NOTES = [
+  ['C', -9],
+  ['C#/Db', -8],
+  ['D', -7],
+  ['D#/Eb', -6],
+  ['E', -5],
+  ['F', -4],
+  ['F#/Gb', -3],
+  ['G', -2],
+  ['G#/Ab', -1],
+  ['A', 0],
+  ['Bb', 1],
+  ['B/Cb', 2]
+];
+
+function noteFreq(semi) {
+  return A4 * Math.pow(2, semi / 12);
+}
+
+function setNearestNote(semi) {
+  var f = noteFreq(semi);
+
+  while (f < baseFreq / Math.sqrt(2)) f *= 2;
+  while (f > baseFreq * Math.sqrt(2)) f /= 2;
+
+  setBaseFreq(f);
+}
+
+function initNoteButtons() {
+  var div = document.getElementById('noteButtons');
+  for (var i = 0; i < NOTES.length; i++) {
+    (function() {
+      var idx = i;
+      var b = document.createElement('button');
+      b.innerHTML = NOTES[idx][0];
+      b.onclick = function() {
+        setNearestNote(NOTES[idx][1]);
+      };
+      div.appendChild(b);
+    })();
+  }
+}
+
+/* ---------- 保存スロット ---------- */
+var slotsDiv = document.getElementById('slots');
+function initSlots() {
+  for (var i = 0; i < SLOT_MAX; i++) {
+    var name = localStorage.getItem('fourierName' + i) || ('Slot ' + (i + 1));
+    slotsDiv.innerHTML += '<div>'
+      + '<input value="' + name + '" onchange="renameSlot(' + i + ', this.value)"> '
+      + '<button onclick="saveSlot(' + i + ')">保存</button>'
+      + '<button onclick="loadSlot(' + i + ')">読込</button>'
+      + '</div>';
+  }
+}
+function renameSlot(i, v) { localStorage.setItem('fourierName' + i, v); }
+function saveSlot(i) {
+  localStorage.setItem('fourierSlot' + i, JSON.stringify(amps));
+}
+function loadSlot(i) {
+  var data = JSON.parse(localStorage.getItem('fourierSlot' + i) || 'null');
+  if (!data) return;
+  for (var k = 0; k < KMAX; k++) amps[k] = data[k] || 0;
+  for (var k = 0; k < KMAX; k++) updateGain(k);
+  drawAll();
+}
+
+initNoteButtons();
+initSlots();
+drawAll();
+</script>
+
+</body>
+</html>
