@@ -472,14 +472,14 @@ function buildInputList() {
       };
     })(n);
 
+    // ★ クリックしたら値を消して0にする（トグル式）
     input.onclick = function() {
-  if (input.value !== "") {
-    input.value = "";
-    amps[n - 1] = 0;
-    updateGain(n - 1);
-    drawAll();
-  }
-};
+      input.value = "";
+      amps[n - 1] = 0;
+      updateGain(n - 1);
+      drawAll();
+    };
+
 
     row.appendChild(label);
     row.appendChild(input);
