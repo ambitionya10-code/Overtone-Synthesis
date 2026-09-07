@@ -406,26 +406,52 @@ function initPresets() {
   };
 }
 
-/* ---------- N の数値入力モード ---------- */
+/* ---------- 数値入力モード（一覧表示） ---------- */
+function buildInputList() {
+  var area = document.getElementById('inputArea');
+  area.innerHTML = '';
+
+  // showUpper が true → 1〜32
+  // showUpper が false → 1〜16
+  var maxN = showUpper ? 32 : 16;
+
+  for (var n = 1; n <= maxN; n++) {
+    var row = document.createElement('div');
+    row.className = 'nRow';
+
+    var label = document.createElement('label');
+    label.textContent = 'N=' + n;
+
+    var input = document.createElement('input');
+    input.type = 'number';
+    input.min = 0;
+    input.max = 100;
+    input.value = Math.round(amps[n - 1] * 100);
+
+    // 入力したら即反映
+    input.oninput = (function(n) {
+      return function(e) {
+        var v = Math.max(0, Math.min(100, +e.target.value));
+        amps[n - 1] = v / 100;
+        updateGain(n - 1);
+        drawAll();
+      };
+    })(n);
+
+    row.appendChild(label);
+    row.appendChild(input);
+    area.appendChild(row);
+  }
+}
+
 function toggleInputArea() {
   var area = document.getElementById('inputArea');
   area.classList.toggle('hidden');
-}
 
-function applyNFromInput() {
-  var idxInput = document.getElementById('nIndexInput');
-  var ampInput = document.getElementById('nAmpInput');
-
-  var idx = parseInt(idxInput.value, 10);
-  var amp = parseFloat(ampInput.value);
-
-  if (isNaN(idx) || idx < 1 || idx > KMAX) return;
-  if (isNaN(amp)) return;
-
-  amp = Math.max(0, Math.min(1, amp));
-  amps[idx - 1] = amp;
-  updateGain(idx - 1);
-  drawAll();
+  // 開いたときに一覧を生成
+  if (!area.classList.contains('hidden')) {
+    buildInputList();
+  }
 }
 
 /* ---------- 初期化 ---------- */
@@ -434,11 +460,9 @@ function initUI() {
   initPresets();
 
   var toggleBtn = document.getElementById('toggleInput');
-  var applyBtn = document.getElementById('applyNBtn');
 
   if (toggleBtn) toggleBtn.onclick = toggleInputArea;
-  if (applyBtn) applyBtn.onclick = applyNFromInput;
-
+  
   setBaseFreq(baseFreq);
   drawAll();
 }
