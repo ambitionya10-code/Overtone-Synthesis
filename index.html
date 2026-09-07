@@ -60,6 +60,19 @@
   </div>
 </div>
 
+<div id="baseFreqBox" style="display:none;">
+  基本周波数: <input type="number" id="baseFreqInput" onchange="setBaseFreq(this.value)">
+</div>
+
+<div id="pitchBox" style="display:none;">
+  ピッチ基準(A4): <input type="number" id="pitchInput" onchange="setA4(this.value)">
+</div>
+
+<div id="presetEditBox" style="display:none;">
+  <button onclick="editPreset()">プリセット編集</button>
+</div>
+
+
 <script src="JavaScript/main.js"></script>
 </body>
 </html>

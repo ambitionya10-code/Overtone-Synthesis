@@ -1,3 +1,5 @@
+var debugMode = false; // ★ デバッグモードの状態
+
 var KMAX = 32;
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
@@ -511,3 +513,48 @@ function initUI() {
 }
 
 initUI();
+
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key.toLowerCase() === 'b'){
+    var pass = prompt("拡張モードのパスワードを入力してください:");
+    if (pass === "huku798081") { // ★ 好きなパスワードに変更OK
+      debugMode = true;
+      alert("拡張モードが有効になりました！");
+      updateDebugUI();
+    } else {
+      alert("パスワードが違います");
+    }
+  }
+});
+
+function updateDebugUI() {
+  // ★ 32〜64倍音の表示切り替え
+  if (debugMode) {
+    showUpper = true;
+    KMAX = 64;
+  } else {
+    showUpper = true;
+    KMAX = 32;
+  }
+
+  // ★ 基本周波数入力欄を表示/非表示
+  var baseFreqBox = document.getElementById("baseFreqBox");
+  if (baseFreqBox) {
+    baseFreqBox.style.display = debugMode ? "block" : "none";
+  }
+
+  // ★ ピッチ基準入力欄を表示/非表示
+  var pitchBox = document.getElementById("pitchBox");
+  if (pitchBox) {
+    pitchBox.style.display = debugMode ? "block" : "none";
+  }
+
+  // ★ プリセット編集ボタンを表示/非表示
+  var presetEditBox = document.getElementById("presetEditBox");
+  if (presetEditBox) {
+    presetEditBox.style.display = debugMode ? "block" : "none";
+  }
+
+  drawAll();
+}
+
