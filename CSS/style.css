@@ -39,8 +39,9 @@ canvas {
 }
 
 input[type=range] {
-  width:380px;   /* ★ 大きくした */
-  height:12px;   /* ★ 太くした */
+  width: 420px;     /* ★ 横幅をさらに広くする */
+  height: 18px;     /* ★ 太くして指でも操作しやすくする */
+  border-radius: 8px;
 }
 
 button {

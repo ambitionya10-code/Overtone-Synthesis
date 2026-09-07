@@ -149,7 +149,13 @@ function setAmpFromPos(clientX, clientY) {
   amps[k] = A;
   updateGain(k);
   drawAll();
+
+  // ★ 数値入力欄が開いているときだけ同期する
+  if (!document.getElementById('inputArea').classList.contains('hidden')) {
+    buildInputList();
+  }
 }
+
 
 var dragging = false;
 
