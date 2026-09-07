@@ -24,6 +24,16 @@ var baseFreq = 234.14;
 // A4 基準
 var A4 = 442;
 
+var currentNoteBtn = null;
+
+function highlightButton(btn) {
+  if (currentNoteBtn) {
+    currentNoteBtn.style.background = "#238636"; // 元の緑
+  }
+  btn.style.background = "#005cc5"; // 青
+  currentNoteBtn = btn;
+}
+
 /* ---------- 描画 ---------- */
 function drawWave() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -229,6 +239,7 @@ function startAudio() {
   osc.start(audioCtx.currentTime);
 
   playing = true;
+  updatePlayButtons();
 }
 
 function stopAudio() {
@@ -240,7 +251,22 @@ function stopAudio() {
   osc = null;
   masterGain = null;
   playing = false;
+  updatePlayButtons();
 }
+
+var playBtn = document.querySelector("button[onclick='startAudio()']");
+var stopBtn = document.querySelector("button[onclick='stopAudio()']");
+
+function updatePlayButtons() {
+  if (playing) {
+    playBtn.style.background = "#005cc5"; // 青
+    stopBtn.style.background = "#238636"; // 緑
+  } else {
+    playBtn.style.background = "#238636";
+    stopBtn.style.background = "#005cc5";
+  }
+}
+
 
 function rebuildWave() {
   if (!playing || !osc) return;
@@ -350,6 +376,7 @@ function initNoteButtons() {
       b.innerHTML = NOTES[idx][0];
       b.onclick = function() {
         setNearestNote(NOTES[idx][1]);
+        highlightButton(b);
       };
       div.appendChild(b);
     })();
@@ -398,6 +425,7 @@ function initPresets() {
     var b = document.createElement('button');
     b.textContent = p.name;
     b.onclick = function() { applyPreset(p); };
+    b.style.background = "#6f42c1"; // 紫
     menu.appendChild(b);
   });
 
@@ -437,6 +465,15 @@ function buildInputList() {
         drawAll();
       };
     })(n);
+
+    input.onclick = function() {
+  if (input.value !== "") {
+    input.value = "";
+    amps[n - 1] = 0;
+    updateGain(n - 1);
+    drawAll();
+  }
+};
 
     row.appendChild(label);
     row.appendChild(input);
