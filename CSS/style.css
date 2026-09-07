@@ -72,25 +72,39 @@ button:hover {
 }
 
 #inputArea {
-  margin-top:10px;
-  padding:10px;
-  background:#111;
-  border-radius:8px;
-  max-height:400px;
-  overflow-y:auto;
+  margin-top: 10px;
+  padding: 10px;
+  background: #111;
+  border-radius: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap; /* ★ 横並びにして折り返し */
+  gap: 10px;       /* ★ 間隔を少し広げる */
 }
 
 .nRow {
-  margin:4px 0;
-  display:flex;
-  align-items:center;
+  width: calc(12.5% - 10px); /* ★ 8個並ぶように幅を調整 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #1a1a1a;
+  border-radius: 6px;
+  padding: 6px;
 }
 
 .nRow label {
-  width:50px;
+  font-size: 0.8rem; /* ★ N= の文字を少し小さく */
+  color: #ccc;
 }
 
 .nRow input {
-  width:70px;
-  margin-left:6px;
+  width: 80px;       /* ★ 入力欄を大きく */
+  height: 28px;      /* ★ 高さも上げて操作しやすく */
+  font-size: 1rem;
+  text-align: center;
+  border-radius: 4px;
+  border: none;
+  background: #222;
+  color: #e6edf3;
 }

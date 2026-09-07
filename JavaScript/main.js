@@ -19,8 +19,8 @@ var osc = null;
 var masterGain = null;
 var playing = false;
 
-// ★ 初期音を B♭ に（233.08Hz）
-var baseFreq = 233.08;
+// ★ 初期音を B♭ に（234.14Hz）
+var baseFreq = 234.14;
 // A4 基準
 var A4 = 442;
 
@@ -462,7 +462,7 @@ function initUI() {
   var toggleBtn = document.getElementById('toggleInput');
 
   if (toggleBtn) toggleBtn.onclick = toggleInputArea;
-  
+
   setBaseFreq(baseFreq);
   drawAll();
 }
