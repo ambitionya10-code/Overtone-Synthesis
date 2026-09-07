@@ -6,14 +6,14 @@ body {
 
 #container {
   display:flex;
-  gap:24px;
+  gap:10px;
   justify-content:center;
   align-items:flex-start;
   padding:20px;
 }
 
 #left {
-  flex:2;
+  flex:1.5;
   text-align:center;
 }
 
@@ -84,7 +84,7 @@ button:hover {
 }
 
 .nRow {
-  width: calc(12.5% - 10px); /* ★ 8個並ぶように幅を調整 */
+  width: calc(11.5% - 8px); /* ★ 8個並ぶように幅を調整 */
   display: flex;
   flex-direction: column;
   align-items: center;
